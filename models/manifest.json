@@ -1,0 +1,20 @@
+{
+  "model": "MediaPipe Face Landmarker",
+  "path": "models/face_landmarker.task",
+  "version": "float16/latest retrieved 2026-09-20",
+  "source_url": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task",
+  "license": "Apache License 2.0; see MediaPipe model card and repository notices",
+  "sha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
+  "bytes": 3758596,
+  "status": "installed_and_load_verified",
+  "pose_fallback": {
+    "model": "MediaPipe Pose Landmarker Lite",
+    "path": "models/pose_landmarker_lite.task",
+    "version": "float16/latest retrieved 2026-09-21",
+    "source_url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task",
+    "license": "Apache License 2.0; see MediaPipe model card and repository notices",
+    "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a",
+    "bytes": 5777746,
+    "purpose": "Profile flexion/extension endpoint selection only"
+  }
+}

@@ -1,0 +1,18 @@
+registry_version: "2.0"
+fixed_conclusion: "Insufficient evidence to estimate overall intubation difficulty."
+active_exploratory_metrics:
+  - {id: visible_lip_aperture, unit: px, definition: "Visible inner-lip landmark separation in orientation-corrected source pixels", review: required}
+  - {id: mouth_width, unit: px, definition: "Mouth-corner landmark separation", review: required}
+  - {id: lip_aperture_mouth_width_ratio, unit: ratio, definition: "Aperture divided by mouth width in the same reviewed near-frontal frame", review: required}
+  - {id: lip_aperture_eye_span_ratio, unit: ratio, definition: "Aperture divided by outer-eye-corner span in the same reviewed near-frontal frame", review: required}
+  - {id: prototype_relative_opening_index, unit: ratio, definition: "Display-only low/mid/high band from the reviewed aperture-to-mouth-width ratio; prototype presentation heuristic, not centimetres or a clinical threshold", review: required, clinical_rule: false}
+  - {id: relative_head_yaw, unit: degree, definition: "Camera-coordinate neutral-relative yaw; intrinsic ZYX", review: required, camera_fixed: required}
+  - {id: relative_head_pitch, unit: degree, definition: "Camera-coordinate neutral-relative pitch; intrinsic ZYX", review: required, camera_fixed: required}
+  - {id: relative_head_roll, unit: degree, definition: "Camera-coordinate neutral-relative roll; intrinsic ZYX", review: required, camera_fixed: required}
+  - {id: tracking_coverage, unit: ratio, definition: "Valid single-face sampled frames divided by sampled frames", review: false}
+skipped_metrics:
+  interincisor_distance: "Face landmarks do not identify actual incisal edges."
+  upper_lip_bite_and_jaw_protrusion: "Actual tooth relationships are not supplied by the face mesh."
+  clinical_anthropometry: "Required neck or bony landmarks and physical scale are absent."
+  cormack_lehane_and_pogo: "External video does not contain the laryngeal view."
+  centimetre_thresholds: "No established physical calibration is present."

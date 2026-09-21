@@ -1,0 +1,31 @@
+registry_version: "1.0"
+coordinate_spaces: [encoded_pixels, orientation_corrected_source_pixels, detector_pixels, display_pixels]
+protocols:
+  - id: expected_front_flexion_extension_v1
+    camera_view: front
+    maneuver: flexion_extension
+    purpose: descriptive_relative_pose_only
+    clinical_cutoffs: false
+  - id: expected_front_rotation_v1
+    camera_view: front
+    maneuver: left_right_rotation
+    purpose: descriptive_relative_pose_only
+    clinical_cutoffs: false
+  - id: expected_lateral_flexion_extension_v1
+    camera_view: lateral
+    maneuver: flexion_extension
+    purpose: descriptive_image_plane_head_line_only
+    clinical_cutoffs: false
+  - id: presentation_ao_v1
+    source: {file: "lillia joe presentation.pptx", sha256: "f14e29e752446cdd5712d7d48c2ee46d63bb1deac3c6bdd533ab92d73904dc7", location: "slide 11"}
+    posture: source_specific
+    landmarks: [incisor_occlusal_plane]
+    activation_status: inactive_unresolved_definition
+  - id: paper_ao_v1
+    source: {file: "YaynlanmMakale.pdf", sha256: "16bb37c5ffcb623cf790dba3f101b96d3ec46def4c8541c5bfe43752aedda4cb", location: "PDF page 3"}
+    posture: supine_full_extension
+    landmarks: [tragus, mouth_corner, horizontal]
+    activation_status: inactive_for_generic_video
+calibration:
+  required: [known_reference_size_cm, reference_endpoints_px, same_plane_geometry, reviewer_verification, applicable_interval]
+  rejected: [assumed_face_size, phone_model, mediapipe_depth, cross_plane_transfer]
