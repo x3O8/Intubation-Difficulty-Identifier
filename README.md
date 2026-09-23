@@ -1,6 +1,8 @@
 # Airway Evidence Review
 
-**Current interface: Research workspace v2.** See [RESEARCH_MVP_V2.md](RESEARCH_MVP_V2.md) for the current four-step workflow, quality checks, distance comparisons, and validation boundaries. The old median/band workflow described below is superseded in the application UI.
+**Current interface: three-video Research workspace.** See [THREE_VIDEO_WORKFLOW.md](THREE_VIDEO_WORKFLOW.md) for labelled uploads, movement endpoints, reviewer-labelled flexion/extension and calibrated thyromental evidence. [RESEARCH_MVP_V2.md](RESEARCH_MVP_V2.md) describes the earlier review foundation. The old median/band workflow described below is superseded in the application UI.
+
+**Pixel distances and ratios:** [PIXEL_MEASUREMENTS.md](PIXEL_MEASUREMENTS.md) documents jaw protrusion, thyromental, hyomental, mandible length, bigonial width, thyroid-to-floor-of-mouth and sternomental estimates. These use reviewer-marked source frames, optional named reference ratios and explicit surface-proxy labels. A larger optional Heavy pose model is available; anatomical-distance accuracy remains unvalidated.
 
 A Windows-local, offline-first Streamlit research prototype for inventorying, assigning, reviewing, and exporting observable airway-video evidence. It does **not** identify people, infer hidden anatomy, predict clinical outcomes, assign an overall difficulty class, or send media off the machine.
 
@@ -60,7 +62,7 @@ For three-video cases, the application also derives a cross-video evidence summa
 - Interincisor distance requires reviewer-confirmed incisal edges; otherwise only visible lip aperture may be recorded.
 - Mallampati assessment is deliberately outside this face-landmark test pipeline and is handled separately by the owner's dedicated model.
 - Generic video head motion is descriptive and is not silently equated with either source AO protocol.
-- Thyromental, hyomental, sternomental, mandibular, bigonial, circumference, hidden landmark, and related physical metrics remain unavailable without exact endpoints, posture, geometry, and scale.
+- Thyromental distance supports a reviewer-marked, calibrated image estimate only with verified mentum/thyroid-notch endpoints, mouth-closed extension, true profile and same-plane scale. It is not automatically inferred by the face model. Other physical distances remain unavailable without their exact endpoints, posture, geometry, and scale.
 - Cormack–Lehane and POGO are `not_applicable` to external video.
 - Difficult laryngoscopy, difficult intubation, and difficult supraglottic-device insertion remain separate outcomes.
 

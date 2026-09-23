@@ -7,6 +7,17 @@
   "sha256": "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
   "bytes": 3758596,
   "status": "installed_and_load_verified",
+  "pose_heavy": {
+    "model": "MediaPipe Pose Landmarker Heavy",
+    "path": "models/pose_landmarker_heavy.task",
+    "version": "float16/1 retrieved 2026-09-23",
+    "source_url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task",
+    "sha256": "64437af838a65d18e5ba7a0d39b465540069bc8aae8308de3e318aad31fcbc7b",
+    "bytes": 30664242,
+    "purpose": "Optional larger pose model for profile movement; target anatomical distance accuracy is unvalidated",
+    "topology": "33 body landmarks; no hyoid, thyroid notch or mandibular gonion",
+    "installer": "scripts/install_pose_heavy.py"
+  },
   "pose_fallback": {
     "model": "MediaPipe Pose Landmarker Lite",
     "path": "models/pose_landmarker_lite.task",

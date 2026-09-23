@@ -4,6 +4,15 @@ import hashlib
 
 MODEL_PATH=Path("models/face_landmarker.task")
 POSE_MODEL_PATH=Path("models/pose_landmarker_lite.task")
+POSE_HEAVY_PATH=Path("models/pose_landmarker_heavy.task")
+
+
+def available_pose_models():
+    models = {}
+    if POSE_HEAVY_PATH.exists():
+        models['Heavy · larger pose model'] = POSE_HEAVY_PATH
+    models['Lite · faster pose model'] = POSE_MODEL_PATH
+    return models
 
 # MediaPipe Face Landmarker topology (478-point task model). These semantic
 # anchors are versioned here and are deliberately limited to visible features.
@@ -23,15 +32,22 @@ def model_sha256(path=MODEL_PATH):
         for block in iter(lambda:f.read(1024*1024),b""): h.update(block)
     return h.hexdigest()
 
-def profile_pose(result):
+def profile_pose(result, width, height):
+    import math
+    if not all(math.isfinite(v) and v > 0 for v in (width, height)):
+        return {"valid":False,"reason":"invalid_source_dimensions"}
     poses=result.pose_landmarks or []
     if len(poses)!=1 or len(poses[0])<=12: return {"valid":False,"reason":"pose_not_detected"}
     nose,left,right=poses[0][0],poses[0][11],poses[0][12]
     confidence=min(getattr(p,"visibility",0.0) for p in (nose,left,right))
-    if confidence<.4: return {"valid":False,"reason":"pose_landmarks_low_visibility","confidence":float(confidence)}
+    if not math.isfinite(confidence) or confidence<.4: return {"valid":False,"reason":"pose_landmarks_low_visibility"}
+    if any(not math.isfinite(v) or not 0 <= v <= 1 for p in (nose,left,right) for v in (p.x,p.y)):
+        return {"valid":False,"reason":"pose_landmarks_outside_frame"}
     sx,sy=(left.x+right.x)/2,(left.y+right.y)/2
-    import math
-    return {"valid":True,"method":"pose_shoulder_to_nose_image_plane","confidence":float(confidence),"head_line_angle_degrees":float(math.degrees(math.atan2(nose.y-sy,nose.x-sx))),"nose":[float(nose.x),float(nose.y)],"shoulder_midpoint":[float(sx),float(sy)]}
+    dx, dy = (nose.x-sx)*width, (nose.y-sy)*height
+    if math.hypot(dx,dy) < 10:
+        return {"valid":False,"reason":"pose_reference_too_short"}
+    return {"valid":True,"method":"pose_shoulder_to_nose_image_plane","angle_coordinate_space":"source_pixels_v1","confidence":float(confidence),"head_line_angle_degrees":float(math.degrees(math.atan2(dy,dx))),"nose":[float(nose.x),float(nose.y)],"shoulder_midpoint":[float(sx),float(sy)]}
 
 class FaceLandmarkerAdapter:
     """Local VIDEO-mode adapter. It never downloads a model at runtime."""

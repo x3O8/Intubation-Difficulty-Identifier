@@ -17,13 +17,14 @@ from .db import transaction
 from .ingest import now
 from .measurements import euler_zyx_degrees, relative_rotation
 from .measurements import line_angle_degrees, relative_angle
+from .protocol import VIDEO_ROLES, latest_thyromental
 
-VERSION = 'research-review-2.0'
+VERSION = 'research-review-3.1'
 POLICY = {'minimum_frames': 10, 'minimum_duration_ms': 1000,
           'minimum_coverage': 0.70, 'maximum_frontal_yaw_deg': 25,
           'minimum_mouth_width_px': 20, 'minimum_eye_span_px': 40}
 SOURCE = 'https://www.asahq.org/~/media/sites/asahq/files/public/resources/standards-guidelines/practice-guidelines-for-management-of-the-difficult-airway.pdf'
-ROLES = ['Unassigned', 'Frontal mouth opening', 'Head rotation', 'Head flexion / extension', 'Lateral movement']
+ROLES = ['Unassigned', 'Frontal mouth opening', 'Head rotation', 'Head flexion / extension', 'Lateral movement', *VIDEO_ROLES]
 MOTION_AXES = {
     'Head rotation': ('yaw', 'left/right rotation'),
     'Head flexion / extension': ('pitch', 'flexion/extension'),
@@ -32,9 +33,12 @@ MOTION_AXES = {
 
 
 def setup(db):
+    from .anthropometry import setup as setup_pixels
+    setup_pixels(db)
     with transaction(db) as c:
         c.execute('CREATE TABLE IF NOT EXISTS research_reviews (id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE, video_id TEXT NOT NULL, run_id TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL)')
         c.execute('CREATE TABLE IF NOT EXISTS research_distances (id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE, payload TEXT NOT NULL, created_at TEXT NOT NULL)')
+        c.execute('CREATE TABLE IF NOT EXISTS research_thyromental (id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE, video_id TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL)')
 
 
 def query(db, sql, args=()):
@@ -157,6 +161,19 @@ def endpoint_window_coverage(selected, usable, timestamps, radius_ms=250):
 
 
 def evaluate_clip(frames, role, start, end, neutral_start, neutral_end, fixed_camera, visible):
+    if role in VIDEO_ROLES:
+        roles = {VIDEO_ROLES[0]: ['Frontal mouth opening', 'Head flexion / extension'],
+                 VIDEO_ROLES[1]: ['Head rotation'], VIDEO_ROLES[2]: ['Head flexion / extension']}[role]
+        # The shoulder-to-nose profile signal is inappropriate for a frontal view.
+        signal_frames = frames if role == VIDEO_ROLES[2] else [dict(f, profile_pose=None) for f in frames]
+        results = [evaluate_clip(signal_frames, item, start, end, neutral_start, neutral_end, fixed_camera, visible) for item in roles]
+        result = dict(results[0], role=role)
+        result['metric_reviews'] = results
+        result['findings'] = [dict(f, evidence_state=r['state']) for r in results for f in r['findings']]
+        result['peak_evidence'] = [p for r in results for p in r['peak_evidence']]
+        result['reasons'] = [f"{r['role']}: {reason}" for r in results for reason in r['reasons']]
+        result['state'] = 'accepted' if all(r['state'] == 'accepted' for r in results) else 'insufficient'
+        return result
     bounds = [start, end, neutral_start, neutral_end]
     if not all(math.isfinite(v) for v in bounds) or start >= end or neutral_start > neutral_end:
         raise ValueError('Choose finite, ordered intervals of nonzero maneuver duration.')
@@ -200,8 +217,9 @@ def evaluate_clip(frames, role, start, end, neutral_start, neutral_end, fixed_ca
             profile_usable = [f for f in usable if (f.get('profile_pose') or {}).get('valid')]
             profile_neutral = [f for f in neutral if (f.get('profile_pose') or {}).get('valid')]
             if role == 'Head flexion / extension' and len(profile_usable) >= 2 and profile_neutral:
-                reference = float(np.mean([f['profile_pose']['head_line_angle_degrees'] for f in profile_neutral]))
-                poses = [{'pitch': f['profile_pose']['head_line_angle_degrees'] - reference, 'method': 'profile_pose'} for f in profile_usable]
+                radians = np.radians([f['profile_pose']['head_line_angle_degrees'] for f in profile_neutral])
+                reference = float(np.degrees(np.arctan2(np.mean(np.sin(radians)), np.mean(np.cos(radians)))))
+                poses = [{'pitch': relative_angle(reference, f['profile_pose']['head_line_angle_degrees']), 'method': 'profile_pose'} for f in profile_usable]
                 pose_frames = profile_usable
             else:
                 face_usable = [f for f in usable if f.get('matrix')]
@@ -219,7 +237,7 @@ def evaluate_clip(frames, role, start, end, neutral_start, neutral_end, fixed_ca
                 reasons.append('Unable to identify two distinct maneuver endpoint frames')
             else:
                 peak_evidence = peaks['endpoints']
-                endpoint_coverage = endpoint_window_coverage(selected, usable, [point['timestamp_ms'] for point in peak_evidence])
+                endpoint_coverage = endpoint_window_coverage(selected, pose_frames, [point['timestamp_ms'] for point in peak_evidence])
                 if not endpoint_coverage['passes']:
                     reasons.append('Peak-frame coverage is too sparse for motion endpoint evidence')
                 prefix = 'Candidate ' if reasons else ''
@@ -230,6 +248,10 @@ def evaluate_clip(frames, role, start, end, neutral_start, neutral_end, fixed_ca
                                  'label': label,
                                  'value': peaks['excursion_degrees'], 'unit':'degree',
                                  'timestamp_ms': [point['timestamp_ms'] for point in peak_evidence]})
+                for point in peak_evidence:
+                    findings.append({'metric': peaks['axis'] + ('_negative_endpoint' if point is peak_evidence[0] else '_positive_endpoint'),
+                                     'label': prefix + ('Profile shoulder-to-nose' if poses[0].get('method') == 'profile_pose' else 'Camera-relative') + ' ' + point['label'] + ' relative to neutral',
+                                     'value': point['value_degrees'], 'unit': 'degree', 'timestamp_ms': point['timestamp_ms']})
         elif len(usable) < 2:
             reasons.append('Fewer than two usable frames for endpoint selection')
     if global_coverage_low and endpoint_coverage is None:
@@ -240,6 +262,34 @@ def evaluate_clip(frames, role, start, end, neutral_start, neutral_end, fixed_ca
             'coverage':coverage,'state':'accepted' if not reasons else 'insufficient',
             'reasons':reasons,'findings':findings,'evidence_timestamp_ms':evidence,
             'peak_evidence':peak_evidence,'endpoint_window_coverage':endpoint_coverage}
+
+
+def label_flexion_extension(result, negative_is_flexion):
+    """Direction requires visual review; a pose sign alone has no anatomical meaning."""
+    if negative_is_flexion is None:
+        return result
+    if result.get('metric_reviews'):
+        for review in result['metric_reviews']:
+            label_flexion_extension(review, negative_is_flexion)
+        result['findings'] = [dict(f, evidence_state=r['state']) for r in result['metric_reviews'] for f in r['findings']]
+        return result
+    if result['role'] != 'Head flexion / extension':
+        return result
+    result['direction_review'] = {'negative_is_flexion': negative_is_flexion,
+                                  'basis': 'Reviewer identified flexion and extension from source frames'}
+    for finding in list(result['findings']):
+        if finding['metric'] not in ('pitch_negative_endpoint', 'pitch_positive_endpoint'):
+            continue
+        negative = finding['metric'] == 'pitch_negative_endpoint'
+        # A neutral interval outside the observed range cannot establish both directions.
+        if (negative and finding['value'] >= 0) or (not negative and finding['value'] <= 0):
+            continue
+        direction = 'flexion' if negative == negative_is_flexion else 'extension'
+        method = 'Profile shoulder-to-nose' if 'shoulder-to-nose' in finding['label'] else 'Camera-relative'
+        result['findings'].append(dict(finding, metric='observed_' + direction,
+                                      label=('Candidate ' if result['state'] != 'accepted' else '') + method + ' ' + direction + ' from neutral (reviewer-labelled)',
+                                      value=abs(finding['value'])))
+    return result
 
 
 def save_review(db, case_id, video_id, run_id, reviewer, result):
@@ -266,7 +316,7 @@ def save_review(db, case_id, video_id, run_id, reviewer, result):
 
 def manual_motion(neutral, current, points, fixed_camera, landmarks_verified, role='Lateral movement'):
     """Apparent image-plane change from two visible points in two source frames."""
-    if role not in ('Lateral movement', 'Head flexion / extension'):
+    if role not in ('Lateral movement', 'Head flexion / extension', VIDEO_ROLES[2]):
         raise ValueError('Manual two-frame movement review is supported only for lateral movement or flexion/extension.')
     if not fixed_camera or not landmarks_verified:
         raise ValueError('Confirm fixed camera and the same visible anatomical endpoints in both frames.')
@@ -318,6 +368,7 @@ def save_distance(db, case_id, result):
 
 
 def case_report(db, case_id):
+    from .anthropometry import latest_reviews
     clips = case_clips(db,case_id)
     output = []
     for clip in clips:
@@ -327,22 +378,31 @@ def case_report(db, case_id):
         if run:
             reviews = query(db,'SELECT * FROM research_reviews WHERE case_id=? AND video_id=? AND run_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1',(case_id,clip['id'],run['id']))
             row.update(state='needs review' if run['state']=='completed' else run['state'],reasons=['Review current run'] if run['state']=='completed' else [run.get('error') or run['state']])
-            if reviews and run['state']=='completed': row.update(json.loads(reviews[0]['payload']))
+            if reviews and run['state']=='completed':
+                row.update(json.loads(reviews[0]['payload']))
+                config = json.loads(run['config_json'])
+                if (config.get('profile_angle_coordinate_space') != 'source_pixels_v1'
+                        and any('shoulder-to-nose' in f.get('label', '').lower() for f in row['findings'])):
+                    row['state'] = 'needs review'
+                    row['reasons'] = list(row['reasons']) + ['Historical profile angle used normalized image coordinates. Reanalyze this clip to correct the image aspect ratio, then review again.']
         output.append(row)
     distances = query(db,'SELECT payload FROM research_distances WHERE case_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1',(case_id,))
     distance = json.loads(distances[0]['payload']) if distances else None
     accepted = sum(c['state']=='accepted' for c in output)
-    conclusion = f'{accepted} of {len(output)} clips have accepted evidence.'
-    if distance: conclusion += ' '+distance['factor_assessment']
-    else: conclusion += ' Clinical threshold screening unavailable: a reviewer-entered physical interincisor measurement is required.'
-    conclusion += ' Difficult-intubation prediction is not established by these measurements.'
+    tmd = latest_thyromental(db, case_id)
+    pixels = latest_reviews(db, case_id)
+    pixel_count = len({r['metric'] for r in pixels if r.get('findings')})
+    conclusion = f'{accepted} of {len(output)} clips have accepted video evidence. Measurements only; no difficult-intubation prediction.'
     return {'version':VERSION,'case_id':case_id,'clips_expected':len(output),'clips_accepted':accepted,
-            'status':'Review complete' if output and accepted==len(output) else 'More evidence needed',
-            'clips':output,'distance_assessment':distance,'conclusion':conclusion,
+            'status':'Video review complete' if output and accepted==len(output) else 'More video evidence needed',
+            'clips':output,'distance_assessment':distance,'thyromental':tmd,'pixel_measurements':pixels,
+            'pixel_metrics_reviewed':pixel_count,'conclusion':conclusion + f' {pixel_count} of 7 pixel/ratio measurement types have a current reviewed value.',
             'quality_policy':POLICY,'limitations':['Quality cutoffs are engineering defaults and need validation.',
             'Different views and pixel scales are reported separately; no cross-view averaging.',
             'Lip aperture is distinct from the distance between incisor edges.',
-            'Camera-relative motion is not an isolated anatomical neck range of motion.']}
+            'Camera-relative motion is not an isolated anatomical neck range of motion.',
+            'Projected pixel distances and surface-proxy ratios are experimental; endpoint error and perspective remain. Hidden anatomy is not inferred.',
+            'Ratios use the named same-frame reference; compare only matching endpoint definitions, views and postures.']}
 
 
 def render_report(report):
@@ -358,22 +418,62 @@ def render_report(report):
     if report['distance_assessment']:
         d=report['distance_assessment']
         parts.append(f'<h2>Interincisor reference comparison</h2><p>{d["value"]:.2f} cm ± {d["uncertainty_cm"]:.2f} cm — {esc(d["status"])}</p><p>{esc(d["method"])} · {esc(d["evidence"])}</p><p>{esc(d["uncertainty_kind"])}</p><a href="{esc(d["source"])}">Reference: interincisor distance below 3 cm</a>')
+    tmd = report.get('thyromental', {})
+    parts.append('<h2>Thyromental distance</h2>')
+    if tmd.get('state') == 'reviewed_estimate':
+        parts.append(f'<p>{tmd["value"]:.2f} cm ± {tmd["uncertainty_cm"]:.2f} cm · Reviewed image estimate</p><p>{esc(tmd["method"])} · {esc(tmd["reviewer"])}</p><p>{esc(tmd["limitation"])}</p><p>Source SHA-256: {esc(tmd["source_hash"])} · Run: {esc(tmd["run_id"])} · {tmd["timestamp_ms"]:.0f} ms</p>')
+        parts.append(f'<img style="max-width:360px" src="{esc(tmd["evidence_image"])}">')
+    else:
+        parts.append(f'<p>Unavailable: {esc(tmd.get("reason", "Not reviewed"))}</p>')
+    parts.append('<h2>Pixel distances and experimental ratios</h2>')
+    for result in report.get('pixel_measurements', []):
+        parts.append(f'<h3>{esc(result["label"])}</h3><p>{esc(result["state"])} · {esc(result.get("reason", ""))}</p>')
+        for finding in result.get('findings', []):
+            bounds = finding.get('range', [])
+            parts.append(f'<p>{esc(finding["label"])}: {finding["value"]:.3f} {esc(finding["unit"])} · placement-error range {esc(bounds)}</p>')
+        if result.get('findings'):
+            parts.append(f'<p>{esc(result.get("formula", ""))}<br>Reference: {esc(result.get("reference_label", "None"))}<br>{esc(result.get("notes", ""))}</p>')
+            parts.append(f'<p>Reviewer: {esc(result.get("reviewer", ""))} · Source: {esc(result.get("file", ""))}<br>SHA-256: {esc(result.get("source_hash", ""))} · Run: {esc(result.get("run_id", ""))}</p>')
+            parts.append(f'<p>{esc(result.get("uncertainty_kind", ""))}<br>{esc(result.get("limitation", ""))}</p>')
+        for image in result.get('evidence_images', []):
+            parts.append(f'<figure><img style="max-width:360px;width:100%" src="{esc(image["data_uri"])}"><figcaption>Reviewed endpoints at {image["timestamp_ms"]:.0f} ms</figcaption></figure>')
     parts.append('<h2>Interpretation limits</h2><ul>'+''.join('<li>'+esc(s)+'</li>' for s in report['limitations'])+'</ul>')
     return '<!doctype html><html><head><meta charset="utf-8"><title>Airway research report</title><style>body{font:16px Segoe UI,sans-serif;color:#19354a;max-width:960px;margin:40px auto;padding:24px}h1{border-bottom:4px solid #197f82;padding-bottom:16px}table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:10px;border-bottom:1px solid #dae3eb}p{overflow-wrap:anywhere}@media print{body{margin:0}h2{break-after:avoid}}</style></head><body>'+''.join(parts)+'</body></html>'
+
+
+def _csv_safe(value):
+    # Signed numeric measurements must remain numeric in spreadsheet exports.
+    if isinstance(value, str) and value.lstrip().startswith(('=', '+', '-', '@')):
+        return "'" + value
+    return value
 
 
 def exports(report):
     serialized=json.dumps(report,indent=2,allow_nan=False,sort_keys=True)
     digest=hashlib.sha256(serialized.encode()).hexdigest()[:12]
-    out=io.StringIO(); fields=['video_id','file','run_id','source_hash','role','state','reviewer','metric','value','unit','timestamp_ms','reason']
+    out=io.StringIO(); fields=['video_id','file','run_id','source_hash','role','state','reviewer','metric','value','unit','timestamp_ms','reason', 'basis', 'reference_label', 'range', 'targets', 'references', 'placement_error_px', 'formula']
     writer=csv.DictWriter(out,fieldnames=fields);writer.writeheader()
     for clip in report['clips']:
         for finding in clip['findings'] or [{}]:
             row={k:clip.get(k,'') for k in fields};row.update({k:v for k,v in finding.items() if k in fields});row['reason']='; '.join(clip['reasons'])
-            writer.writerow({k:("'"+str(v) if str(v).startswith(('=','+','-','@')) else v) for k,v in row.items()})
+            writer.writerow({k:_csv_safe(v) for k,v in row.items()})
     d=report.get('distance_assessment')
     if d:
         row={'metric':'interincisor_distance','value':d['value'],'unit':'cm','state':d['status'],
              'reviewer':d['reviewer'],'reason':f"{d['method']}; error bound +/- {d['uncertainty_cm']} cm; < {d['threshold_cm']} cm reference; {d['evidence']}"}
-        writer.writerow({k:("'"+str(v) if str(v).startswith(('=','+','-','@')) else v) for k,v in row.items()})
+        writer.writerow({k:_csv_safe(v) for k,v in row.items()})
+    tmd = report.get('thyromental', {})
+    row = {'metric': 'thyromental_distance', 'state': tmd.get('state', 'unavailable'),
+           'value': tmd.get('value', ''), 'unit': 'cm', 'reviewer': tmd.get('reviewer', ''),
+           'video_id': tmd.get('video_id', ''), 'run_id': tmd.get('run_id', ''),
+           'source_hash': tmd.get('source_hash', ''), 'timestamp_ms': tmd.get('timestamp_ms', ''),
+           'reason': tmd.get('reason') or f"{tmd.get('method')}; error bound +/- {tmd.get('uncertainty_cm')} cm; {tmd.get('limitation')}"}
+    writer.writerow({k:_csv_safe(v) for k,v in row.items()})
+    for result in report.get('pixel_measurements', []):
+        for finding in result.get('findings') or [{'metric':result['metric']}]:
+            row = {k: result.get(k, '') for k in fields}
+            row.update({k: v for k, v in finding.items() if k in fields})
+            row['timestamp_ms'] = result.get('timestamps', [])
+            row['reason'] = result.get('reason') or result.get('notes', '') + '; ' + result.get('limitation', '')
+            writer.writerow({k:_csv_safe(v) for k,v in row.items()})
     return digest,{'html':render_report(report),'json':serialized,'csv':out.getvalue()}

@@ -16,7 +16,7 @@ from .prototype import relative_opening_band
 from .quality import frame_quality
 from .video import json_dump_strict
 
-ALGORITHM_VERSION="pretrained-landmark-mvp-2.0"
+ALGORITHM_VERSION="pretrained-landmark-mvp-3.0"
 
 def _hash(path):
     h=hashlib.sha256()
@@ -70,7 +70,7 @@ def analyze_clip(case_id, video_id, *, sample_hz=10.0, db_path="data/airway.sqli
     source=Path(video["source_path"]); mh=model_sha256(model_path); pose_hash=model_sha256(pose_model_path); run_id=str(uuid.uuid4())
     if _hash(source)!=video['sha256']:
         raise ValueError('Source video changed since inventory. Re-import the source before analysis.')
-    config={"sample_hz":sample_hz,"timestamp_source":"PyAV frame PTS/time_base","num_faces":2,"landmark_map_version":LANDMARK_MAP_VERSION,"pose_model":"MediaPipe pose_landmarker_lite","pose_model_sha256":pose_hash,"algorithm_version":ALGORITHM_VERSION,"source_rotation_degrees":_rotation(video["metadata_json"])}
+    config={"sample_hz":sample_hz,"timestamp_source":"PyAV frame PTS/time_base","num_faces":2,"landmark_map_version":LANDMARK_MAP_VERSION,"pose_model":Path(pose_model_path).stem,"pose_model_sha256":pose_hash,"profile_angle_coordinate_space":"source_pixels_v1","algorithm_version":ALGORITHM_VERSION,"source_rotation_degrees":_rotation(video["metadata_json"])}
     with transaction(db_path) as c:
         c.execute("INSERT INTO analysis_runs(id,case_id,video_id,config_json,model_hash,state,started_at) VALUES(?,?,?,?,?,?,?)",(run_id,case_id,video_id,json.dumps(config),mh,"running",now()))
     root=ensure_under_managed(Path("data/runs")/run_id,"data"); root.mkdir(parents=True,exist_ok=True); thumbs=root/"thumbnails"; thumbs.mkdir()
@@ -104,7 +104,7 @@ def analyze_clip(case_id, video_id, *, sample_hz=10.0, db_path="data/airway.sqli
                 result=detector.detect(rgb,ms)
                 pose_result=pose_detector.detect(rgb,ms)
                 rec=_frame_record(result,w,h,t,frame_quality(bgr)); rec["sample_index"]=sampled; rec["source_width"]=w; rec["source_height"]=h
-                rec["profile_pose"]=profile_pose(pose_result)
+                rec["profile_pose"]=profile_pose(pose_result,w,h)
                 original=thumbs/f"source_{sampled:06d}_{ms}.jpg"
                 cv2.imwrite(str(original),bgr);rec['source_frame_path']=str(original)
                 if rec["valid"] and (sampled%max(1,int(round(sample_hz)))==0):

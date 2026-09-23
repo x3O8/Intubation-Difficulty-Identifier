@@ -30,3 +30,18 @@ The live Streamlit application loaded at `127.0.0.1:8501`, showed the 320-clip i
 ## Remaining scientific gates
 
 No manual ground-truth landmark annotations or derived-distance error study has been supplied, so landmark or measurement accuracy is not claimed. The full 320-clip collection run has not been performed. View suitability still requires reviewer judgment, especially for lateral pose, blur, occlusion, and near-frontal ratio eligibility. Camera-relative pose is not isolated neck or atlanto-occipital motion. Physical distances and clinical grades remain out of scope without the required anatomy, protocol, geometry, and calibration.
+# Three-video workflow update — 2026-09-23
+
+- Full regression suite: **47 passed**, with two existing protobuf deprecation warnings.
+- New checks cover three distinct synthetic video uploads with real decoding, duplicate rejection, explicit patient confirmation, separate frontal mouth/motion review, reviewer-labelled flexion/extension, known-geometry thyromental calculation, missing-prerequisite rejection, persisted exports and stale-analysis invalidation.
+- Browser inspection verified the three upload slots, thyromental source-frame controls and final-report unavailable state/download controls. Synthetic upload persistence was tested through the application backend; a complete upload-to-reviewed-patient-result browser run was not performed.
+- No new clinical measurement accuracy, automatic thyroid-notch detection, or validated anatomical cervical range-of-motion result is established. No source patient videos were relabelled or accepted during verification.
+
+## Pixel and ratio measurements — 2026-09-23
+
+- Full regression suite: **61 passed**, with two existing protobuf deprecation warnings. Coverage includes all six static distances, scale-invariant ratios, signed two-frame jaw protrusion, reference/error gates, case isolation, persistence, exports and stale-source invalidation.
+- Added reviewer-marked anatomical endpoints or explicitly labelled visible surface proxies for thyromental, hyomental, mandible length, bigonial width, thyroid-to-floor-of-mouth, sternomental and jaw protrusion measurements. No new patient measurements were saved during this verification.
+- Official MediaPipe Pose Landmarker Heavy loaded and produced valid pose results on all eight sampled frames from the supplied side-view clip. This is an execution check, not an anatomical accuracy benchmark.
+- Corrected profile angle geometry to use source-pixel coordinates on non-square frames. Historical affected profile results now require reanalysis/review.
+- Browser inspection confirmed the Heavy selector, all seven metric choices, source-frame endpoint/reference controls and reviewer/error fields in the distances-and-ratios tab. Automated Streamlit checks cover saving a synthetic review and the jaw controls.
+- The model does not identify the hyoid or internal floor of mouth. Such endpoints require external identification or an explicitly documented surface surrogate; otherwise the result remains unavailable. No SOTA accuracy or clinical neck range-of-motion claim is established.

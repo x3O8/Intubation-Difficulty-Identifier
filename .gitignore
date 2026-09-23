@@ -13,3 +13,7 @@ data/*
 Thumbs.db
 .vscode/
 *.log
+
+# Optional downloaded research model; install locally with scripts/install_pose_heavy.py
+/models/pose_landmarker_heavy.task
+/models/*.download
