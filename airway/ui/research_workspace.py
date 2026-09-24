@@ -26,7 +26,8 @@ def findings_dataframe(findings):
 
 def workspace(db):
     setup(db)
-    st.header('Research workspace')
+    st.markdown("<p style='font-family:\"JetBrains Mono\",monospace;font-size:11px;text-transform:uppercase;color:#b05a36;font-weight:600;letter-spacing:0.04em;margin-bottom:0.3rem'>Research Workspace</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='font-family:\"Playfair Display\",Georgia,serif;font-weight:400;font-size:1.8rem;color:#2a2b2f;margin-top:0'>Analyze, Review, <em>Export</em></h2>", unsafe_allow_html=True)
     st.caption('Select a case → analyze its videos → review the evidence → export your findings')
     intake(db)
     cases=query(db,'SELECT id,label FROM cases WHERE deleted_at IS NULL ORDER BY created_at DESC')
@@ -40,7 +41,7 @@ def workspace(db):
     c.metric('Thyromental distance','Reviewed estimate' if report['thyromental']['state']=='reviewed_estimate' else 'Unavailable')
     analyze,review,distances,final=st.tabs(['1 · Analyze videos','2 · Review evidence','3 · Distances and ratios','4 · Final report'])
     with analyze:
-        st.subheader('Process the complete case')
+        st.markdown("<h3 style='font-family:\"Playfair Display\",Georgia,serif;font-weight:400;color:#2a2b2f'>Process the <em>Complete Case</em></h3>", unsafe_allow_html=True)
         st.write('All selected videos are processed in one batch. Each keeps its own tracking history, camera view, and findings.')
         frequency=st.select_slider('Samples per second',options=[5,10,15,20],value=10,key=f'hz_{cid}')
         pose_models = available_pose_models()
@@ -70,7 +71,7 @@ def workspace(db):
                     if frames: st.write(f"Profile-pose fallback: {pose_n} / {len(frames)} sampled frames ({pose_n/len(frames):.0%})")
                     if frames and n/len(frames)<.7: st.warning('Sparse tracking. Check orientation, face visibility, and the selected interval before accepting this video.')
     with review:
-        st.subheader('Review each video in its own role')
+        st.markdown("<h3 style='font-family:\"Playfair Display\",Georgia,serif;font-weight:400;color:#2a2b2f'>Review Each <em>Video</em></h3>", unsafe_allow_html=True)
         st.caption('Quality defaults: at least 10 usable frames, a 1-second interval, and 70% usable coverage. These are engineering settings awaiting measurement validation.')
         for index,clip in enumerate(clips):
             run=latest_run(db,cid,clip['id'])
@@ -151,7 +152,7 @@ def workspace(db):
         st.divider()
         thyromental_panel(db,cid,clips)
         st.divider()
-        st.subheader('Compare an interincisor measurement')
+        st.markdown("<h3 style='font-family:\"Playfair Display\",Georgia,serif;font-weight:400;color:#2a2b2f'>Interincisor <em>Measurement</em></h3>", unsafe_allow_html=True)
         st.write('Record the gap between upper and lower incisor edges at maximal opening. The reference comparison is below 3 cm. Lip landmarks cannot supply incisor endpoints.')
         st.caption('Use a direct measurement or a same-plane reference with reviewer-identified incisor endpoints. The uncertainty is your stated error bound.')
         method=st.radio('Measurement method',['Manual interincisor measurement','Calibrated incisor endpoints'],key='distance_method'+cid)

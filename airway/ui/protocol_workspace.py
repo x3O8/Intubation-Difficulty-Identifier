@@ -10,6 +10,7 @@ from airway.ui.components import click_landmark_pair
 
 def intake(db):
     with st.expander('New patient · upload three videos'):
+        st.markdown("<p style='font-family:\"JetBrains Mono\",monospace;font-size:11px;text-transform:uppercase;color:#b05a36;font-weight:600;letter-spacing:0.04em;margin-bottom:0.2rem'>Patient Intake</p>", unsafe_allow_html=True)
         st.write('Keep the camera fixed, include the head, neck and shoulders, and begin each recording in a neutral position. Move slowly and pause at each comfortable endpoint. Do not force movement.')
         st.caption('For thyromental distance, include a mouth-closed extension hold in the side video. The mentum and thyroid notch must be identifiable, with a known-size reference in the same measurement plane. A reviewer must verify these requirements.')
         with st.form('three_video_intake', clear_on_submit=True):
@@ -41,7 +42,7 @@ def assigned_role(db, case_id, video_id):
 
 
 def thyromental_panel(db, cid, clips):
-    st.subheader('Thyromental distance · chin to thyroid notch')
+    st.markdown("<h3 style='font-family:\"Playfair Display\",Georgia,serif;font-weight:400;color:#2a2b2f'>Thyromental Distance · <em>Chin to Thyroid Notch</em></h3>", unsafe_allow_html=True)
     st.write('The face model does not locate the thyroid notch. Select a side-view frame at full extension with the mouth closed, then mark and verify the endpoints. Without visible anatomy and a suitable scale, this measurement stays unavailable.')
     eligible = []
     for clip in clips:

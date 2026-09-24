@@ -11,7 +11,7 @@ from airway.protocol import VIDEO_ROLES
 
 
 def findings_panel(reviews):
-    st.subheader('Pixel distances and experimental ratios')
+    st.markdown("<h3 style='font-family:\"Playfair Display\",Georgia,serif;font-weight:400;color:#2a2b2f'>Pixel Distances and <em>Experimental Ratios</em></h3>", unsafe_allow_html=True)
     for result in reviews:
         with st.expander(result['label'] + ' · ' + result['state'].replace('_', ' ')):
             if result.get('reason'):
@@ -33,7 +33,7 @@ def findings_panel(reviews):
 
 
 def measurement_panel(db, cid, clips):
-    st.subheader('Measure distances in pixels or as ratios')
+    st.markdown("<h3 style='font-family:\"Playfair Display\",Georgia,serif;font-weight:400;color:#2a2b2f'>Measure Distances in <em>Pixels or Ratios</em></h3>", unsafe_allow_html=True)
     st.write('Choose source frames and mark the endpoints. A ratio divides the distance by a named reference in the same frame. No ruler is required for pixels or ratios.')
     metric = st.selectbox('Research measurement', list(METRICS), format_func=lambda k: METRICS[k][0], key='anthro_metric'+cid)
     name, point_a, point_b, required_view, posture = METRICS[metric]

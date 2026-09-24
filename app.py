@@ -20,12 +20,364 @@ from airway.prototype import relative_opening_band
 DB=Path("data/airway.sqlite3")
 initialize(DB)
 st.set_page_config(page_title="Airway Evidence Review",page_icon="◌",layout="wide")
-st.markdown("""<style>.block-container{padding-top:2rem;max-width:1350px}.hero{padding:1.4rem 1.6rem;border:1px solid #d7e1e7;border-radius:18px;background:linear-gradient(135deg,#f4fbfb,#f8f5ef);color:#12343b}.hero h1{color:#12343b!important}.muted{color:#5d6b75}.stButton>button{border-radius:10px}</style>""",unsafe_allow_html=True)
-st.markdown("<div class='hero'><h1>Airway Research Studio</h1><p class='muted'>Video evidence, measurement review, and traceable research findings.</p></div>",unsafe_allow_html=True)
-st.markdown("<style>.hero{background:#edf4f8;border-left:5px solid #197f82;border-radius:6px}.hero h1{font-family:Georgia,serif;font-size:2.4rem}.stCaption{line-height:1.5}button:focus-visible{outline:3px solid #197f82!important}div[data-testid=stMetric]{border-bottom:2px solid #a5c9d5;padding-bottom:12px}</style>",unsafe_allow_html=True)
 
-page=st.sidebar.radio("Workflow",["Research workspace","Cases","Inventory & assignment","Delete"])
-st.sidebar.caption('Research prototype · Local processing')
+# ---------------------------------------------------------------------------
+# DESIGN SYSTEM — CSS injection (DESIGN.md: warm apothecary journal)
+# ---------------------------------------------------------------------------
+# Font imports
+st.markdown("""<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400&family=Playfair+Display:ital,wght@0,400;1,300;1,400&display=swap" rel="stylesheet">""", unsafe_allow_html=True)
+
+# Design system tokens and global styles
+st.markdown("""<style>
+:root {
+    --color-terracotta-seal: #b05a36;
+    --gradient-terracotta-seal: linear-gradient(116deg, rgb(176, 90, 54), rgb(212, 166, 142));
+    --color-parchment: #fef9ef;
+    --color-aged-paper: #f5eee1;
+    --color-warm-taupe: #d1c9bf;
+    --color-ink: #2a2b2f;
+    --color-charcoal: #333333;
+    --color-graphite: #515151;
+    --color-ash: #808988;
+    --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+    --radius-cards: 24px;
+    --radius-buttons: 40px;
+    --radius-pills: 9999px;
+    --radius-inputs: 9999px;
+    --shadow-lg: rgba(0, 0, 0, 0.15) 0px 0px 20px 0px;
+    --shadow-xl: rgba(42, 43, 47, 0.1) 12px 32px 80px 0px;
+}
+.stApp, .main, [data-testid="stAppViewContainer"] {
+    background-color: var(--color-parchment) !important;
+}
+.block-container { padding-top: 2rem; max-width: 1280px; }
+html, body, .stApp,
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] span {
+    font-family: var(--font-body) !important;
+    letter-spacing: -0.023em;
+    color: var(--color-ink);
+}
+[data-testid="stSidebar"] {
+    background: var(--color-aged-paper) !important;
+    border-right: 1px solid var(--color-warm-taupe) !important;
+}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span {
+    font-family: var(--font-body) !important;
+    color: var(--color-ink);
+}
+[data-testid="stSidebar"] hr { border-color: var(--color-warm-taupe); opacity: 0.5; }
+h1, h2, h3 {
+    font-family: var(--font-display) !important;
+    color: var(--color-ink) !important;
+}
+h1 { font-weight: 400 !important; }
+h2 { font-weight: 400 !important; font-size: 1.8rem !important; }
+h3 { font-weight: 400 !important; font-size: 1.3rem !important; }
+hr { border-color: var(--color-warm-taupe) !important; opacity: 0.6; }
+.stCaption, [data-testid="stCaptionContainer"] {
+    color: var(--color-graphite) !important;
+    font-size: 13px !important;
+}
+</style>""", unsafe_allow_html=True)
+
+# Component styles
+st.markdown("""<style>
+.hero-card {
+    background: var(--color-aged-paper);
+    border: 1px solid var(--color-warm-taupe);
+    border-radius: var(--radius-cards);
+    padding: 2.5rem 2.2rem 2rem;
+    margin-bottom: 1.5rem;
+}
+.hero-card .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--color-terracotta-seal);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.5rem;
+}
+.hero-card h1 {
+    font-family: var(--font-display) !important;
+    font-size: 2.6rem;
+    font-weight: 400;
+    line-height: 1.1;
+    color: var(--color-ink) !important;
+    margin: 0 0 0.6rem 0;
+}
+.hero-card h1 em { font-weight: 300; font-style: italic; }
+.hero-card .subtitle {
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--color-graphite);
+    line-height: 1.5;
+    letter-spacing: -0.37px;
+}
+.stButton > button, .stFormSubmitButton > button {
+    border-radius: var(--radius-buttons) !important;
+    font-family: var(--font-body) !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.023em !important;
+    transition: all 0.2s ease !important;
+}
+.stButton > button[kind="primary"], .stFormSubmitButton > button {
+    background: var(--color-terracotta-seal) !important;
+    color: white !important;
+    border: none !important;
+}
+.stButton > button[kind="primary"]:hover, .stFormSubmitButton > button:hover {
+    background: #9a4e2f !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+.stButton > button[kind="secondary"] {
+    background: transparent !important;
+    border: 1.5px solid var(--color-terracotta-seal) !important;
+    color: var(--color-terracotta-seal) !important;
+}
+.stButton > button[kind="secondary"]:hover {
+    background: rgba(176, 90, 54, 0.06) !important;
+}
+.stDownloadButton > button {
+    border-radius: var(--radius-buttons) !important;
+    font-family: var(--font-body) !important;
+    font-weight: 600 !important;
+    border: 1.5px solid var(--color-terracotta-seal) !important;
+    color: var(--color-terracotta-seal) !important;
+    background: transparent !important;
+}
+.stDownloadButton > button:hover {
+    background: rgba(176, 90, 54, 0.06) !important;
+}
+div[data-testid="stMetric"] {
+    background: var(--color-aged-paper);
+    border: 1px solid var(--color-warm-taupe);
+    border-radius: var(--radius-cards);
+    padding: 1.2rem 1.4rem;
+}
+div[data-testid="stMetric"] label {
+    font-family: var(--font-body) !important;
+    color: var(--color-graphite) !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    font-family: var(--font-display) !important;
+    color: var(--color-ink) !important;
+    font-weight: 400 !important;
+}
+</style>""", unsafe_allow_html=True)
+
+# UI element styles
+st.markdown("""<style>
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0;
+    border-bottom: 2px solid var(--color-warm-taupe);
+}
+.stTabs [data-baseweb="tab"] {
+    font-family: var(--font-body) !important;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: -0.023em;
+    color: var(--color-graphite);
+    border-bottom: 3px solid transparent;
+    padding: 0.7rem 1.2rem;
+    transition: all 0.2s ease;
+}
+.stTabs [data-baseweb="tab"]:hover { color: var(--color-ink); }
+.stTabs [aria-selected="true"] {
+    color: var(--color-terracotta-seal) !important;
+    border-bottom-color: var(--color-terracotta-seal) !important;
+}
+.stTabs [data-baseweb="tab-highlight"] { background-color: var(--color-terracotta-seal) !important; }
+.stTabs [data-baseweb="tab-border"] { background-color: var(--color-warm-taupe) !important; }
+.streamlit-expanderHeader {
+    font-family: var(--font-body) !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    color: var(--color-ink) !important;
+}
+[data-testid="stExpander"] {
+    border: 1px solid var(--color-warm-taupe) !important;
+    border-radius: var(--radius-cards) !important;
+    background: var(--color-parchment) !important;
+}
+.stTextInput > div > div, .stNumberInput > div > div,
+.stSelectbox > div > div, .stMultiSelect > div > div,
+.stTextArea > div > div {
+    border-radius: 12px !important;
+    border-color: var(--color-ash) !important;
+}
+.stTextInput > div > div:focus-within, .stNumberInput > div > div:focus-within,
+.stSelectbox > div > div:focus-within, .stMultiSelect > div > div:focus-within,
+.stTextArea > div > div:focus-within {
+    border-color: var(--color-terracotta-seal) !important;
+    box-shadow: 0 0 0 3px rgba(176, 90, 54, 0.15) !important;
+}
+[data-testid="stForm"] {
+    border: 1px solid var(--color-warm-taupe) !important;
+    border-radius: var(--radius-cards) !important;
+    background: var(--color-aged-paper) !important;
+    padding: 1.5rem !important;
+}
+div[data-testid="stAlert"] { border-radius: 16px !important; font-family: var(--font-body) !important; }
+.stDataFrame { border-radius: 12px !important; overflow: hidden; }
+.stCheckbox label span, .stRadio label span { font-family: var(--font-body) !important; }
+.stLinkButton > a { color: var(--color-terracotta-seal) !important; font-weight: 600 !important; }
+.stProgress > div > div > div { background: var(--gradient-terracotta-seal) !important; }
+[data-testid="stSidebar"] .stSelectbox > label {
+    font-family: var(--font-body) !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--color-graphite) !important;
+}
+.stSlider [data-baseweb="slider"] [role="slider"] {
+    background: var(--color-terracotta-seal) !important;
+}
+.sidebar-brand {
+    padding: 1.2rem 1rem 0.8rem;
+    border-bottom: 1px solid var(--color-warm-taupe);
+    margin-bottom: 0.8rem;
+}
+.sidebar-brand h2 {
+    font-family: var(--font-display) !important;
+    font-size: 1.5rem !important;
+    font-weight: 400 !important;
+    color: var(--color-ink) !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+.sidebar-brand .brand-sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-ash);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 0.3rem;
+}
+.nav-section {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--color-ash);
+    letter-spacing: 0.06em;
+    padding: 1rem 1rem 0.3rem;
+    font-weight: 400;
+}
+</style>""", unsafe_allow_html=True)
+
+# Sidebar vertical navigation tabs CSS
+st.markdown("""<style>
+/* Hide sidebar scrollbars */
+[data-testid="stSidebar"] > div:first-child {
+    overflow-y: hidden !important;
+    overflow-x: hidden !important;
+}
+[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+/* Hide widget label (empty box above options) */
+[data-testid="stSidebar"] [data-testid="stRadio"] > label,
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-testid="stWidgetLabel"] {
+    display: none !important;
+}
+/* Hide standard radio circles */
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label > div:first-child {
+    display: none !important;
+}
+/* Style option labels as clean segmented vertical tabs */
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.65rem 0.9rem !important;
+    border-radius: 10px !important;
+    margin-bottom: 0.4rem !important;
+    cursor: pointer !important;
+    background: var(--color-parchment) !important;
+    border: 1px solid var(--color-warm-taupe) !important;
+    transition: all 0.15s ease !important;
+    width: 100% !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:hover {
+    background: #f2e9dc !important;
+    border-color: var(--color-terracotta-seal) !important;
+}
+/* Active selected tab styling */
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked),
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] [aria-checked="true"] {
+    background: rgba(176, 90, 54, 0.10) !important;
+    border: 1.5px solid var(--color-terracotta-seal) !important;
+    border-left: 4px solid var(--color-terracotta-seal) !important;
+    box-shadow: 0 2px 4px rgba(176, 90, 54, 0.08) !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label [data-testid="stMarkdownContainer"] p {
+    font-family: var(--font-body) !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    color: var(--color-charcoal) !important;
+    margin: 0 !important;
+    letter-spacing: -0.015em !important;
+}
+[data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) [data-testid="stMarkdownContainer"] p {
+    color: var(--color-terracotta-seal) !important;
+    font-weight: 600 !important;
+}
+</style>""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# SIDEBAR — branded navigation
+# ---------------------------------------------------------------------------
+PAGES = {
+    "Research workspace":   "🩺  Clinical Review",
+    "Cases":                "📋  Patient Intake",
+}
+
+with st.sidebar:
+    st.markdown("""
+    <div class="sidebar-brand">
+        <h2>Airway <em>Studio</em></h2>
+        <div class="brand-sub">Evidence Review · v0.1</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="nav-section">Workflow</div>', unsafe_allow_html=True)
+    page = st.radio(
+        "Navigate",
+        list(PAGES.keys()),
+        format_func=lambda k: PAGES[k],
+        label_visibility="collapsed",
+    )
+
+    st.divider()
+    st.caption("Local processing · No network access")
+    st.caption("Research prototype — not for clinical decisions")
+
+# ---------------------------------------------------------------------------
+# HERO
+# ---------------------------------------------------------------------------
+st.markdown("""
+<div class="hero-card">
+    <div class="eyebrow">Airway Research Studio</div>
+    <h1>Video Evidence, Measurement <em>Review</em></h1>
+    <div class="subtitle">Traceable research findings from local video analysis. No data leaves this machine.</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+# PAGE ROUTING (all backend logic preserved identically)
+# ---------------------------------------------------------------------------
 if page=='Research workspace':
     from airway.ui.research_workspace import workspace
     workspace(DB)
@@ -35,7 +387,7 @@ def rows(query,args=()):
     with transaction(DB) as conn: return [dict(x) for x in conn.execute(query,args)]
 
 if page=="Inventory & assignment":
-    st.header("Inventory and assignment")
+    st.header("Inventory and Assignment")
     vids=rows("SELECT v.id video_uuid,v.relative_path,v.sha256,v.bytes,v.decode_status,a.participant_id,a.status assignment_status,a.camera_view,a.maneuver FROM videos v JOIN assignments a ON a.video_id=v.id AND a.active=1 ORDER BY v.relative_path")
     a,b,c,d=st.columns(4); a.metric("Inventoried clips",len(vids)); b.metric("Confirmed",sum(x["assignment_status"]=="confirmed" for x in vids)); c.metric("Provisional",sum(x["assignment_status"]=="provisional" for x in vids)); d.metric("Unassigned",sum(x["assignment_status"]=="unassigned" for x in vids))
     if vids: st.dataframe(pd.DataFrame(vids),use_container_width=True,height=410)
@@ -61,7 +413,7 @@ if page=="Inventory & assignment":
             st.json(materialize_confirmed(pid,DB))
 
 elif page=="Cases":
-    st.header("Cases")
+    st.header("Patient Cases")
     mode=st.radio("Case type",["Three-video patient assessment","Confirmed participant","Single-clip technical review"],horizontal=True)
     confirmed=rows("SELECT id FROM participants WHERE status='confirmed' AND deleted_at IS NULL ORDER BY id")
     if not confirmed: st.warning("Combined participant cases require owner-confirmed mappings. Single-clip technical review remains available after inventory.")
@@ -85,7 +437,7 @@ elif page=="Cases":
     st.dataframe(pd.DataFrame(rows("SELECT * FROM cases WHERE deleted_at IS NULL ORDER BY created_at DESC")),use_container_width=True)
 
 elif page=="Analyze":
-    st.header("Technical analysis")
+    st.header("Technical Analysis")
     cases=rows("SELECT id,label,participant_id FROM cases WHERE deleted_at IS NULL")
     if not cases: st.info("Create a case first.")
     else:
@@ -159,7 +511,7 @@ elif page=="Analyze":
                 st.dataframe(pd.DataFrame(active),use_container_width=True)
 
 elif page=="Review":
-    st.header("Human review")
+    st.header("Human Review")
     cases=rows("SELECT id,label FROM cases WHERE deleted_at IS NULL")
     if not cases: st.info("Create and analyze a case first.")
     else:
@@ -201,7 +553,7 @@ elif page=="Review":
             st.success(f"Saved review revision {rid}. Dependent active measurements and report snapshots were invalidated; prior records remain preserved.")
 
 elif page=="Report & export":
-    st.header("Report and export")
+    st.header("Report and Export")
     cases=rows("SELECT id,label,participant_id FROM cases WHERE deleted_at IS NULL")
     if not cases: st.info("No cases available.")
     else:
@@ -216,7 +568,7 @@ elif page=="Report & export":
     st.info(LIMITATION)
 
 elif page=="Delete":
-    st.header("Safe managed-data deletion")
+    st.header("Safe Data Deletion")
     st.warning("Deletion affects only the selected managed case. Files in Downloads are never targeted. Browser-downloaded exports are outside this application's control.")
     cases=rows("SELECT id,label,participant_id FROM cases WHERE deleted_at IS NULL")
     if cases:

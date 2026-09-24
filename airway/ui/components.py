@@ -4,8 +4,20 @@ from PIL import Image, ImageDraw
 from streamlit_image_coordinates import streamlit_image_coordinates
 
 def state_badge(state):
-    colors={"available":"#1f7a5a","needs_review":"#a15c00","unavailable":"#9b2c2c","not_applicable":"#53657a"}
-    st.markdown(f"<span style='padding:.2rem .55rem;border-radius:99px;background:{colors.get(state,'#555')}22;color:{colors.get(state,'#555')};font-weight:650'>{state.replace('_',' ')}</span>",unsafe_allow_html=True)
+    colors={
+        "available":("#b05a36","rgba(176,90,54,0.10)"),
+        "needs_review":("#a15c00","rgba(161,92,0,0.10)"),
+        "unavailable":("#9b2c2c","rgba(155,44,44,0.10)"),
+        "not_applicable":("#808988","rgba(128,137,136,0.10)"),
+    }
+    fg,bg=colors.get(state,("#515151","rgba(81,81,81,0.10)"))
+    st.markdown(
+        f"<span style='display:inline-block;padding:.25rem .75rem;border-radius:9999px;"
+        f"background:{bg};color:{fg};font-family:\"JetBrains Mono\",\"Consolas\",monospace;"
+        f"font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em'>"
+        f"{state.replace('_',' ')}</span>",
+        unsafe_allow_html=True,
+    )
 
 def point_editor(prefix, defaults=((0.0,0.0),(0.0,0.0))):
     st.caption("Numeric coordinate fallback (orientation-corrected source pixels)")
